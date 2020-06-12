@@ -1,0 +1,23 @@
+{
+  "name": "azure-throttling-exporter",
+  "version": "1.0.0",
+  "description": "Prometheus exporter for Azure throttling metrics",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/palmerabollo/azure-throttling-exporter.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/palmerabollo/azure-throttling-exporter/issues"
+  },
+  "homepage": "https://github.com/palmerabollo/azure-throttling-exporter#readme",
+  "dependencies": {
+    "prom-client": "^12.0.0"
+  }
+}
