@@ -9,7 +9,6 @@ RUN apt-get update && \
     apt-get remove -y software-properties-common && \
     apt-get update && \
     apt-get install -y azure-cli=2.7.0-1~stretch && \
-    apt-get remove -y software-properties-common && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/app

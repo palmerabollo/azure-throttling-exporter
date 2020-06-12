@@ -5,7 +5,7 @@ Prometheus exporter for Azure throttling metrics.
 ```
 docker run --rm -it -p 8080:8080 \
     -e AZURE_AD_USER -e AZURE_PASSWORD -e AZURE_SUBSCRIPTION_ID \
-    palmerabollo/azure-throttling-exporter:0.1.0
+    palmerabollo/azure-throttling-exporter:0.1.1
 ```
 
 Open [localhost:8080](http://localhost:8080) to get the exposed metrics:
