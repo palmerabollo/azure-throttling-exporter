@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/palmerabollo/azure-throttling-exporter#readme",
   "dependencies": {
+    "logops": "^2.1.1",
     "prom-client": "^12.0.0"
   }
 }
