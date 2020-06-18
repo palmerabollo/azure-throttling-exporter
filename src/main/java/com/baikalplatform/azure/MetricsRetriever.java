@@ -24,6 +24,8 @@ public class MetricsRetriever implements Runnable {
     private static final int MAX_CONSECUTIVE_FAILURES = 2;
     private static final int AZURE_CONNECTION_TIMEOUT_MILLIS = 4000;
 
+    private static final String AZURE_HEADER_RATELIMIT_REMAINING = "x-ms-ratelimit-remaining-resource";
+
     private static final String AZURE_CLIENT_ID;
     private static final String AZURE_CLIENT_SECRET;
     private static final String AZURE_TENANT_ID;
@@ -101,8 +103,9 @@ public class MetricsRetriever implements Runnable {
 
         var metrics = new HashMap<String, Integer>();
 
-        if (response.statusCode() < 300) {
-            var optionalHeader = response.headers().firstValue("x-ms-ratelimit-remaining-resource");
+        var success = response.statusCode() < 300;
+        if (success) {
+            var optionalHeader = response.headers().firstValue(AZURE_HEADER_RATELIMIT_REMAINING);
             logger.info("Health probe ok {}", response.statusCode());
 
             optionalHeader.ifPresent(header -> {
