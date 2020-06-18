@@ -1,3 +1,6 @@
-node_modules
 .gitignore
+.idea
+*.iml
+target
+
 *.md
