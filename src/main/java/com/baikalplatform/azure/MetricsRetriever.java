@@ -42,8 +42,8 @@ public class MetricsRetriever implements Runnable {
             .register();
 
     private int consecutiveFailures = 0;
-    private final String subscription;
     private final URI uri;
+    private final HttpClient client;
 
     static {
         AZURE_CLIENT_ID = Optional.ofNullable(System.getenv("AZURE_CLIENT_ID")).orElseThrow();
@@ -52,8 +52,12 @@ public class MetricsRetriever implements Runnable {
     }
 
     public MetricsRetriever(String subscription) {
-        this.subscription = subscription;
         this.uri = URI.create("https://management.azure.com/subscriptions/" + subscription + "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2019-12-01");
+
+        this.client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(AZURE_CONNECTION_TIMEOUT_MILLIS))
+                .version(HttpClient.Version.HTTP_2)
+                .build();
     }
 
     public void run() {
@@ -72,22 +76,31 @@ public class MetricsRetriever implements Runnable {
         }
     }
 
-    private String requestAccessToken() throws IOException {
-        var credentials = new ApplicationTokenCredentials(
-                AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET, AzureEnvironment.AZURE);
+    private Map<String, Integer> getRateLimits() throws MetricsException {
+        HttpResponse<Void> response = sendHttpRequest();
 
-        logger.debug("Requesting new token");
-        var token = credentials.getToken("https://management.azure.com");
-        logger.debug("Requested token ok {}...", token.substring(0, 10));
-        return token;
+        var metrics = new HashMap<String, Integer>();
+
+        var success = response.statusCode() == 200;
+        if (success) {
+            var optionalHeader = response.headers().firstValue(AZURE_HEADER_RATELIMIT_REMAINING);
+
+            optionalHeader.ifPresent(header -> {
+                logger.info("Health probe OK: {}", header);
+                var elements = header.split(",");
+                Stream.of(elements).forEach(s -> {
+                    var values = s.split(";");
+                    metrics.put(values[0], Integer.parseInt(values[1]));
+                });
+            });
+        } else {
+            throw new MetricsException("Unexpected response code " + response.statusCode());
+        }
+
+        return metrics;
     }
 
-    private Map<String, Integer> getRateLimits() throws MetricsException {
-        var client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(AZURE_CONNECTION_TIMEOUT_MILLIS))
-                .version(HttpClient.Version.HTTP_2)
-                .build();
-
+    private HttpResponse<Void> sendHttpRequest() throws MetricsException {
         HttpResponse<Void> response;
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -100,25 +113,16 @@ public class MetricsRetriever implements Runnable {
         } catch (IOException | InterruptedException e) {
             throw new MetricsException("Failure sending HTTP request", e);
         }
+        return response;
+    }
 
-        var metrics = new HashMap<String, Integer>();
+    private String requestAccessToken() throws IOException {
+        var credentials = new ApplicationTokenCredentials(
+                AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET, AzureEnvironment.AZURE);
 
-        var success = response.statusCode() < 300;
-        if (success) {
-            var optionalHeader = response.headers().firstValue(AZURE_HEADER_RATELIMIT_REMAINING);
-            logger.info("Health probe ok {}", response.statusCode());
-
-            optionalHeader.ifPresent(header -> {
-                var elements = header.split(",");
-                Stream.of(elements).forEach(s -> {
-                    var values = s.split(";");
-                    metrics.put(values[0], Integer.parseInt(values[1]));
-                });
-            });
-        } else {
-            throw new MetricsException("Unexpected response code " + response.statusCode());
-        }
-
-        return metrics;
+        logger.debug("Requesting new token");
+        var token = credentials.getToken("https://management.azure.com");
+        logger.debug("Requested token ok {}...", token.substring(0, 10));
+        return token;
     }
 }
