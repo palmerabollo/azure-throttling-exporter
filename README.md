@@ -5,7 +5,13 @@ This repository offers a prometheus exporter for Azure throttling metrics.
 
 ## How to run it
 
-You need an Azure Service Principal and export the following environment variables to access Azure management endpoints:
+You need an Azure Service Principal that you can create with the following command:
+
+```
+az ad sp create-for-rbac --name baikal-azure-health-export --role contributor --years 1
+```
+
+Then, you should export the following environment variables to access Azure management endpoints:
 - AZURE_CLIENT_ID
 - AZURE_TENANT_ID
 - AZURE_CLIENT_SECRET
