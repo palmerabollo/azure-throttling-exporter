@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -62,7 +63,7 @@ public class MetricsRetriever implements Runnable {
 
     public void run() {
         try {
-            logger.debug("Run");
+            logger.debug("Run metrics retriever");
             var rates = getRateLimits();
             rates.forEach((rate, value) -> gauge.labels(rate).set(value));
         } catch (Exception e) {
@@ -81,19 +82,25 @@ public class MetricsRetriever implements Runnable {
 
         var metrics = new HashMap<String, Integer>();
 
-        var success = response.statusCode() == 200;
-        if (success) {
+        if (response.statusCode() == HttpURLConnection.HTTP_OK) {
             var optionalHeader = response.headers().firstValue(AZURE_HEADER_RATELIMIT_REMAINING);
 
             optionalHeader.ifPresent(header -> {
-                logger.info("Health probe OK: {}", header);
+                logger.info("Health probe OK (200): {}", header);
                 var elements = header.split(",");
                 Stream.of(elements).forEach(s -> {
                     var values = s.split(";");
                     metrics.put(values[0], Integer.parseInt(values[1]));
                 });
             });
+        } else if (response.statusCode() == 429) { // too many requests, not available in HttpURLConnection
+            var header = response.headers()
+                                 .firstValue(AZURE_HEADER_RATELIMIT_REMAINING)
+                                 .orElseGet(() -> "no header " + AZURE_HEADER_RATELIMIT_REMAINING);
+            logger.info("Health probe TOO_MANY_REQUESTS (429): {}", header);
+            metrics.clear();
         } else {
+            metrics.clear();
             throw new MetricsException("Unexpected response code " + response.statusCode());
         }
 

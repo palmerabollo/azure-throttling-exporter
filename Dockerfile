@@ -10,7 +10,7 @@ RUN mvn clean package
 
 FROM gcr.io/distroless/java-debian10
 
-COPY --from=builder /opt/app/target/azure-throttling-exporter-0.2.1-jar-with-dependencies.jar app.jar
+COPY --from=builder /opt/app/target/azure-throttling-exporter-*-jar-with-dependencies.jar app.jar
 
 ENTRYPOINT ["java", "-cp", "app.jar", "com.baikalplatform.azure.AzureMetricsExporter"]
 
