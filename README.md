@@ -14,7 +14,7 @@ You need an Azure Service Principal and export the following environment variabl
 ```sh
 docker run --rm -it -p 8080:8080 \
     -e AZURE_CLIENT_ID -e AZURE_TENANT_ID -e AZURE_CLIENT_SECRET -e AZURE_SUBSCRIPTION_ID \
-    palmerabollo/azure-throttling-exporter:0.2.1
+    palmerabollo/azure-throttling-exporter:0.2.2
 ```
 
 Open [localhost:8080](http://localhost:8080) to get the exposed metrics:
