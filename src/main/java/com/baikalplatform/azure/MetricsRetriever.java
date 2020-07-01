@@ -1,5 +1,6 @@
 package com.baikalplatform.azure;
 
+import com.microsoft.aad.adal4j.AuthenticationException;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.credentials.ApplicationTokenCredentials;
 import io.prometheus.client.Counter;
@@ -24,6 +25,8 @@ public class MetricsRetriever implements Runnable {
 
     private static final int MAX_CONSECUTIVE_FAILURES = 2;
     private static final int AZURE_CONNECTION_TIMEOUT_MILLIS = 4000;
+
+    private static final int HTTP_TOO_MANY_REQUESTS = 429;
 
     private static final String AZURE_HEADER_RATELIMIT_REMAINING = "x-ms-ratelimit-remaining-resource";
 
@@ -66,7 +69,7 @@ public class MetricsRetriever implements Runnable {
             logger.debug("Run metrics retriever");
             var rates = getRateLimits();
             rates.forEach((rate, value) -> gauge.labels(rate).set(value));
-        } catch (Exception e) {
+        } catch (MetricsException e) {
             failuresCounter.inc();
 
             if (consecutiveFailures++ > MAX_CONSECUTIVE_FAILURES) {
@@ -82,24 +85,21 @@ public class MetricsRetriever implements Runnable {
 
         var metrics = new HashMap<String, Integer>();
 
-        if (response.statusCode() == HttpURLConnection.HTTP_OK) {
-            var optionalHeader = response.headers().firstValue(AZURE_HEADER_RATELIMIT_REMAINING);
+        var statusCode = response.statusCode();
+        var optionalHeader = response.headers().firstValue(AZURE_HEADER_RATELIMIT_REMAINING);
 
+        if (statusCode == HttpURLConnection.HTTP_OK || statusCode == HTTP_TOO_MANY_REQUESTS) {
             optionalHeader.ifPresent(header -> {
-                logger.info("Health probe OK (200): {}", header);
+                logger.info("Health probe OK ({}): {}", statusCode, header);
                 var elements = header.split(",");
                 Stream.of(elements).forEach(s -> {
                     var values = s.split(";");
                     metrics.put(values[0], Integer.parseInt(values[1]));
                 });
             });
-        } else if (response.statusCode() == 429) { // too many requests, not available in HttpURLConnection
-            var header = response.headers()
-                                 .firstValue(AZURE_HEADER_RATELIMIT_REMAINING)
-                                 .orElseGet(() -> "no header " + AZURE_HEADER_RATELIMIT_REMAINING);
-            logger.info("Health probe TOO_MANY_REQUESTS (429): {}", header);
-            metrics.clear();
         } else {
+            var header = optionalHeader.orElseGet(() -> "no header " + AZURE_HEADER_RATELIMIT_REMAINING);
+            logger.info("Health probe ERR ({}): {}", statusCode, header);
             metrics.clear();
             throw new MetricsException("Unexpected response code " + response.statusCode());
         }
@@ -117,7 +117,7 @@ public class MetricsRetriever implements Runnable {
                     .build();
 
             response = client.send(request, HttpResponse.BodyHandlers.discarding());
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException | AuthenticationException e) {
             throw new MetricsException("Failure sending HTTP request", e);
         }
         return response;
