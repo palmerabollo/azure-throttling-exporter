@@ -114,6 +114,7 @@ public class MetricsRetriever implements Runnable {
                     .GET()
                     .uri(uri)
                     .setHeader("Authorization", "Bearer " + requestAccessToken())
+                    .setHeader("User-Agent", "palmerabollo/azure-throttling-exporter") // XXX include version
                     .build();
 
             response = client.send(request, HttpResponse.BodyHandlers.discarding());
