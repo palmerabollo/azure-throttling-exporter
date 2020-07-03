@@ -20,15 +20,16 @@ Then, you should export the following environment variables to access Azure mana
 ```sh
 docker run --rm -it -p 8080:8080 \
     -e AZURE_CLIENT_ID -e AZURE_TENANT_ID -e AZURE_CLIENT_SECRET -e AZURE_SUBSCRIPTION_ID \
-    palmerabollo/azure-throttling-exporter:0.2.3
+    palmerabollo/azure-throttling-exporter:0.2.4
 ```
 
 Open [localhost:8080](http://localhost:8080) to get the exposed metrics:
 ```
 # HELP ms_ratelimit_remaining_resource_gauge Remaining resource reads before reaching the throttling threshold
 # TYPE ms_ratelimit_remaining_resource_gauge gauge
-ms_ratelimit_remaining_resource_gauge{rate="Microsoft.Compute/HighCostGetVMScaleSet3Min"} 174
-ms_ratelimit_remaining_resource_gauge{rate="Microsoft.Compute/HighCostGetVMScaleSet30Min"} 816
+ms_ratelimit_remaining_resource_gauge{rate="Microsoft.Compute/HighCostGetVMScaleSet3Min"} 174.0
+ms_ratelimit_remaining_resource_gauge{rate="Microsoft.Compute/HighCostGetVMScaleSet30Min"} 816.0
+ms_ratelimit_remaining_resource_gauge{rate="x-ms-ratelimit-remaining-subscription-reads",} 11999.0
 
 # HELP ms_ratelimit_failures_total Number of failures trying to obtain Azure rate limits
 # TYPE ms_ratelimit_failures_total counter

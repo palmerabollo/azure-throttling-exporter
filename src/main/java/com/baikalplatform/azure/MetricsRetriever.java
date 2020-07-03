@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
@@ -28,7 +29,11 @@ public class MetricsRetriever implements Runnable {
 
     private static final int HTTP_TOO_MANY_REQUESTS = 429;
 
-    private static final String AZURE_HEADER_RATELIMIT_REMAINING = "x-ms-ratelimit-remaining-resource";
+    private static final String HEADER_REMAINING_RESOURCE = "x-ms-ratelimit-remaining-resource";
+
+    // XXX Gathering "x-ms-ratelimit-remaining-subscription-writes" would be useful as well.
+    //     It is included in response to write operations, which we don't make yet.
+    private static final String HEADER_REMAINING_SUBSCRIPTION_READS = "x-ms-ratelimit-remaining-subscription-reads";
 
     private static final String AZURE_CLIENT_ID;
     private static final String AZURE_CLIENT_SECRET;
@@ -82,15 +87,21 @@ public class MetricsRetriever implements Runnable {
 
     private Map<String, Integer> getRateLimits() throws MetricsException {
         HttpResponse<Void> response = sendHttpRequest();
+        var statusCode = response.statusCode();
+        logger.info("Health probe response ({})", statusCode);
+
+        HttpHeaders headers = response.headers();
+        var resourcesHeader = headers.allValues(HEADER_REMAINING_RESOURCE);
 
         var metrics = new HashMap<String, Integer>();
 
-        var statusCode = response.statusCode();
-        var optionalHeader = response.headers().firstValue(AZURE_HEADER_RATELIMIT_REMAINING);
-
         if (statusCode == HttpURLConnection.HTTP_OK || statusCode == HTTP_TOO_MANY_REQUESTS) {
-            optionalHeader.ifPresent(header -> {
-                logger.info("Health probe OK ({}): {}", statusCode, header);
+            var subscriptionReads = headers.firstValue(HEADER_REMAINING_SUBSCRIPTION_READS).orElse("0");
+            logger.info("Header: {} = {}", HEADER_REMAINING_SUBSCRIPTION_READS, subscriptionReads);
+            metrics.put(HEADER_REMAINING_SUBSCRIPTION_READS, Integer.parseInt(subscriptionReads));
+
+            resourcesHeader.forEach(header -> {
+                logger.info("Header: {}", header);
                 var elements = header.split(",");
                 Stream.of(elements).forEach(s -> {
                     var values = s.split(";");
@@ -98,10 +109,8 @@ public class MetricsRetriever implements Runnable {
                 });
             });
         } else {
-            var header = optionalHeader.orElseGet(() -> "no header " + AZURE_HEADER_RATELIMIT_REMAINING);
-            logger.info("Health probe ERR ({}): {}", statusCode, header);
             metrics.clear();
-            throw new MetricsException("Unexpected response code " + response.statusCode());
+            throw new MetricsException("Unexpected response code " + statusCode);
         }
 
         return metrics;
