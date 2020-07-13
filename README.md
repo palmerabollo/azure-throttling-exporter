@@ -8,7 +8,7 @@ This repository offers a prometheus exporter for Azure throttling metrics.
 You need an Azure Service Principal that you can create with the following command:
 
 ```
-az ad sp create-for-rbac --name baikal-azure-health-export --role contributor --years 1
+az ad sp create-for-rbac --name azure-health-exporter --role contributor --years 5 --scopes /subscriptions/${AZURE_SUBSCRIPTION_ID}
 ```
 
 Then, you should export the following environment variables to access Azure management endpoints:
