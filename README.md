@@ -2,6 +2,7 @@
 
 Are you facing throttling issues in Azure? You are not alone.
 This repository offers a prometheus exporter for Azure throttling metrics.
+**This project is no longer maintained. If you need to scrape Azure metrics, take a look at [Promitor](https://promitor.io/).**
 
 ## How to run it
 
